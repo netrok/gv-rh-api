@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gv_rh
+    username: postgres
+    password: riesenhammer
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      "[hibernate.format_sql]": true
+      "[hibernate.jdbc.time_zone]": UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  web:
+    resources:
+      add-mappings: false
+
+app:
+  jwt:
+    # 🔐 32+ bytes en Base64 (elige SOLO uno; aquí uso este)
+    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==  # 32+ bytes
+    issuer: gv-rh-api
+    access-minutes: 60
+    refresh-minutes: 43200
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui/index.html
+    display-request-duration: true
+    persist-authorization: true
