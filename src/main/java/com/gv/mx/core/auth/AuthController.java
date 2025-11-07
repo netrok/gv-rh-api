@@ -1,4 +1,3 @@
-// src/main/java/com/gv/mx/core/auth/AuthController.java
 package com.gv.mx.core.auth;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,14 +22,16 @@ public class AuthController {
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 
     @PostMapping(path = "/login", consumes = "application/json", produces = "application/json")
-    @Operation(
-            summary = "Login y emisión de JWT (demo)",
-            security = {}   // <-- anula el requisito global: endpoint público
-    )
+    @Operation(summary = "Login y emisión de JWT (demo)")
     public ResponseEntity<?> login(@RequestBody LoginRequest body) {
+        // DEMO: credenciales fijas
         if ("admin".equals(body.username()) && "Admin123*".equals(body.password())) {
+            // Usa tu implementación existente JwtService.issue(subject, roles...)
             String token = jwt.issue(body.username(), "ADMIN", "RRHH");
-            return ResponseEntity.ok(Map.of("access_token", token, "token_type", "Bearer"));
+            return ResponseEntity.ok(Map.of(
+                    "token_type", "Bearer",
+                    "access_token", token
+            ));
         }
         return ResponseEntity.status(401).build();
     }

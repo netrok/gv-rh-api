@@ -25,11 +25,11 @@ spring:
 
 app:
   jwt:
-    # 🔐 32+ bytes en Base64 (elige SOLO uno; aquí uso este)
-    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==  # 32+ bytes
+    # Base64 de 32+ bytes (solo uno, este es válido para HS256)
+    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==
     issuer: gv-rh-api
     access-minutes: 60
-    refresh-minutes: 43200
+    refresh-minutes: 43200   # 30 días
 
 springdoc:
   api-docs:
