@@ -11,7 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
-public class JwtServiceImpl implements JwtService {
+public class JwtServiceImpl {
 
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
@@ -30,13 +30,12 @@ public class JwtServiceImpl implements JwtService {
         this.accessMinutes = accessMinutes;
     }
 
-    @Override
     public String issue(String username, String... roles) {
         Instant now = Instant.now();
 
         Map<String, Object> claimsMap = new HashMap<>();
         claimsMap.put("scope", String.join(" ", roles));
-        claimsMap.put("roles", Arrays.asList(roles));
+        claimsMap.put("roles", Arrays.asList(roles)); // tu SecurityConfig usa 'roles'
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
@@ -46,12 +45,10 @@ public class JwtServiceImpl implements JwtService {
                 .claims(c -> c.putAll(claimsMap))
                 .build();
 
-        // 👇 MUY IMPORTANTE: Header HS256 para que ImmutableSecret sea seleccionable
         JwsHeader jws = JwsHeader.with(MacAlgorithm.HS256).build();
         return encoder.encode(JwtEncoderParameters.from(jws, claims)).getTokenValue();
     }
 
-    @Override
     public List<String> getRoles(String token) {
         Jwt jwt = decoder.decode(token);
         Object rolesClaim = jwt.getClaims().get("roles");
