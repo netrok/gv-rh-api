@@ -1,68 +1,139 @@
 package com.gv.mx.empleados.domain;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import lombok.*;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "empleados")
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Empleado {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name="num_empleado", length = 30, unique = true, nullable = false)
+    @Column(name = "num_empleado", length = 20, nullable = false)
     private String numEmpleado;
 
-    @Column(nullable = false, length = 120)
+    @Column(length = 120, nullable = false)
     private String nombres;
 
-    @Column(name="apellido_paterno", length = 120)
+    @Column(name = "apellido_paterno", length = 120, nullable = false)
     private String apellidoPaterno;
 
-    @Column(name="apellido_materno", length = 120)
+    @Column(name = "apellido_materno", length = 120)
     private String apellidoMaterno;
 
-    @Column(length = 160)
+    @Column(length = 200, nullable = false)
     private String email;
 
     @Column(nullable = false)
-    private Boolean activo = true;
+    private Boolean activo;
 
-    @Column(name="created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(length = 255)
+    private String foto;
 
-    @Column(name="updated_at", nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    // Personales / Identificadores
+    @Column(name = "fecha_nacimiento")
+    private LocalDate fechaNacimiento;
 
-    // --- getters/setters ---
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    @Column(length = 20)
+    private String genero;
 
-    public String getNumEmpleado() { return numEmpleado; }
-    public void setNumEmpleado(String numEmpleado) { this.numEmpleado = numEmpleado; }
+    @Column(name = "estado_civil", length = 30)
+    private String estadoCivil;
 
-    public String getNombres() { return nombres; }
-    public void setNombres(String nombres) { this.nombres = nombres; }
+    @Column(length = 18)
+    private String curp;
 
-    public String getApellidoPaterno() { return apellidoPaterno; }
-    public void setApellidoPaterno(String apellidoPaterno) { this.apellidoPaterno = apellidoPaterno; }
+    @Column(length = 13)
+    private String rfc;
 
-    public String getApellidoMaterno() { return apellidoMaterno; }
-    public void setApellidoMaterno(String apellidoMaterno) { this.apellidoMaterno = apellidoMaterno; }
+    @Column(length = 15)
+    private String nss;
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    @Column(length = 30)
+    private String telefono;
 
-    public Boolean getActivo() { return activo; }
-    public void setActivo(Boolean activo) { this.activo = activo; }
+    @Column(name = "fecha_ingreso")
+    private LocalDate fechaIngreso;
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    // Catálogos como IDs (por ahora)
+    @Column(name = "departamento_id")
+    private Long departamentoId;
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    @Column(name = "puesto_id")
+    private Long puestoId;
 
-    @PreUpdate
-    public void onUpdate() { this.updatedAt = LocalDateTime.now(); }
+    @Column(name = "turno_id")
+    private Long turnoId;
+
+    @Column(name = "horario_id")
+    private Long horarioId;
+
+    @Column(name = "supervisor_id")
+    private Long supervisorId;
+
+    // Dirección
+    @Column(length = 200)
+    private String calle;
+    @Column(name = "num_ext", length = 20)
+    private String numExt;
+    @Column(name = "num_int", length = 20)
+    private String numInt;
+    @Column(length = 120)
+    private String colonia;
+    @Column(length = 120)
+    private String municipio;
+    @Column(length = 120)
+    private String estado;
+    @Column(length = 10)
+    private String cp;
+
+    @Column(length = 80)
+    private String nacionalidad;
+    @Column(name = "lugar_nacimiento", length = 120)
+    private String lugarNacimiento;
+    @Column(length = 80)
+    private String escolaridad;
+    @Column(name = "tipo_sangre", length = 10)
+    private String tipoSangre;
+
+    // Contacto de emergencia
+    @Column(name = "contacto_nombre", length = 120)
+    private String contactoNombre;
+    @Column(name = "contacto_telefono", length = 30)
+    private String contactoTelefono;
+    @Column(name = "contacto_parentesco", length = 60)
+    private String contactoParentesco;
+
+    // Bancario
+    @Column(name = "banco_id")
+    private Long bancoId;
+    @Column(name = "cuenta_bancaria", length = 30)
+    private String cuentaBancaria;
+    @Column(length = 18)
+    private String clabe;
+
+    // Contrato/Jornada
+    @Column(name = "tipo_contrato_id")
+    private Long tipoContratoId;
+    @Column(name = "tipo_jornada_id")
+    private Long tipoJornadaId;
+
+    // Bajas
+    @Column(name = "fecha_baja")
+    private LocalDate fechaBaja;
+    @Column(name = "motivo_baja_id")
+    private Long motivoBajaId;
+
+    // Otros
+    @Column(name = "imss_reg_patronal", length = 20)
+    private String imssRegPatronal;
+    @Column(name = "infonavit_numero", length = 20)
+    private String infonavitNumero;
+    @Column(name = "fonacot_numero", length = 20)
+    private String fonacotNumero;
 }
