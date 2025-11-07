@@ -1,5 +1,9 @@
 server:
   port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024
 
 spring:
   datasource:
@@ -11,26 +15,32 @@ spring:
     hibernate:
       ddl-auto: validate
     properties:
-      "[hibernate.format_sql]": true
-      "[hibernate.jdbc.time_zone]": UTC
+      # Logs SQL “bonito” y fuerza zona horaria consistente
+      hibernate.format_sql: true
+      hibernate.jdbc.time_zone: UTC
   flyway:
     enabled: true
     locations: classpath:db/migration
   jackson:
+    # Fechas como ISO-8601 (no timestamps)
     serialization:
       write-dates-as-timestamps: false
   web:
     resources:
       add-mappings: false
+  mvc:
+    problemdetails:
+      enabled: true   # Respuestas de error RFC7807 (más limpias)
 
+# ===== JWT (HS256 con clave en Base64 de 32+ bytes) =====
 app:
   jwt:
-    # Base64 de 32+ bytes (solo uno, este es válido para HS256)
     secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==
     issuer: gv-rh-api
     access-minutes: 60
-    refresh-minutes: 43200   # 30 días
+    refresh-minutes: 43200  # 30 días
 
+# ===== SpringDoc / Swagger UI =====
 springdoc:
   api-docs:
     enabled: true
@@ -39,3 +49,18 @@ springdoc:
     path: /swagger-ui/index.html
     display-request-duration: true
     persist-authorization: true
+
+# ===== Actuator (solo health/info expuestos) =====
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# ===== Logging (silencia aviso JTA innecesario) =====
+logging:
+  level:
+    org.hibernate.engine.transaction.jta.platform.internal.JtaPlatformInitiator: ERROR
