@@ -31,7 +31,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/gv_rh
     username: postgres
-    password: riesenhammer
+    password: #
   jpa:
     open-in-view: false
     hibernate:
