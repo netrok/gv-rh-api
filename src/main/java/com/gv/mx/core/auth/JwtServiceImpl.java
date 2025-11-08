@@ -2,6 +2,8 @@
 package com.gv.mx.core.auth;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
@@ -11,56 +13,86 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
-public class JwtServiceImpl {
+public class JwtServiceImpl implements JwtService {
 
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
     private final String issuer;
     private final long accessMinutes;
 
-    public JwtServiceImpl(
-            JwtEncoder encoder,
-            JwtDecoder decoder,
-            @Value("${app.jwt.issuer}") String issuer,
-            @Value("${app.jwt.access-minutes}") long accessMinutes
-    ) {
+    public JwtServiceImpl(JwtEncoder encoder,
+                          JwtDecoder decoder,
+                          @Value("${app.jwt.issuer}") String issuer,
+                          @Value("${app.jwt.access-minutes}") long accessMinutes) {
         this.encoder = encoder;
         this.decoder = decoder;
         this.issuer = issuer;
         this.accessMinutes = accessMinutes;
     }
 
-    public String issue(String username, String... roles) {
+    @Override
+    public String generateAccess(Authentication auth) {
+        var roles = auth.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .toList();
+        return generateAccessInternal(auth.getName(), roles);
+    }
+
+    @Override
+    public String generateAccess(UserDetails user) {
+        var roles = user.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .toList();
+        return generateAccessInternal(user.getUsername(), roles);
+    }
+
+    private String generateAccessInternal(String username, List<String> roles) {
         Instant now = Instant.now();
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("roles", roles);
+        claims.put("scope", String.join(" ", roles));
+        claims.put("typ", "access");
 
-        Map<String, Object> claimsMap = new HashMap<>();
-        claimsMap.put("scope", String.join(" ", roles));
-        claimsMap.put("roles", Arrays.asList(roles)); // tu SecurityConfig usa 'roles'
-
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet set = JwtClaimsSet.builder()
                 .issuer(issuer)
+                .subject(username)
                 .issuedAt(now)
                 .expiresAt(now.plus(accessMinutes, ChronoUnit.MINUTES))
-                .subject(username)
-                .claims(c -> c.putAll(claimsMap))
+                .claims(c -> c.putAll(claims))
                 .build();
 
         JwsHeader jws = JwsHeader.with(MacAlgorithm.HS256).build();
-        return encoder.encode(JwtEncoderParameters.from(jws, claims)).getTokenValue();
+        return encoder.encode(JwtEncoderParameters.from(jws, set)).getTokenValue();
     }
 
-    public List<String> getRoles(String token) {
-        Jwt jwt = decoder.decode(token);
-        Object rolesClaim = jwt.getClaims().get("roles");
-        if (rolesClaim instanceof Collection<?> col) {
-            List<String> out = new ArrayList<>();
-            for (Object o : col) out.add(String.valueOf(o));
-            return out;
-        }
-        String scope = jwt.getClaimAsString("scope");
-        if (scope != null && !scope.isBlank()) {
-            return Arrays.asList(scope.split("\\s+"));
-        }
-        return Collections.emptyList();
+    @Override
+    public String generateRefresh(UserDetails user, UUID familyId, UUID jti) {
+        Instant now = Instant.now();
+        var roles = user.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .toList();
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("roles", roles);
+        claims.put("scope", String.join(" ", roles));
+        claims.put("typ", "refresh");
+        claims.put("family_id", familyId.toString());
+        claims.put("jti", jti.toString());
+
+        // La expiración real del refresh la controla la BD (registro en auth_refresh_tokens)
+        JwtClaimsSet set = JwtClaimsSet.builder()
+                .issuer(issuer)
+                .subject(user.getUsername())
+                .issuedAt(now)
+                .claims(c -> c.putAll(claims))
+                .build();
+
+        JwsHeader jws = JwsHeader.with(MacAlgorithm.HS256).build();
+        return encoder.encode(JwtEncoderParameters.from(jws, set)).getTokenValue();
+    }
+
+    @Override
+    public Jwt decode(String token) {
+        return decoder.decode(token);
     }
 }

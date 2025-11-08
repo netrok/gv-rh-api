@@ -1,19 +1,22 @@
 // src/main/java/com/gv/mx/core/auth/AuthController.java
 package com.gv.mx.core.auth;
 
+import com.gv.mx.core.auth.domain.UserAccount;
 import com.gv.mx.core.auth.dto.AuthDtos.AccessResponse;
 import com.gv.mx.core.auth.dto.AuthDtos.LoginRequest;
 import com.gv.mx.core.auth.dto.AuthDtos.RefreshRequest;
 import com.gv.mx.core.auth.dto.AuthDtos.TokenPairResponse;
+import com.gv.mx.core.auth.dto.AuthDtos.LogoutRequest;
 import com.gv.mx.core.auth.dto.SignUpDtos.CreateUserRequest;
 import com.gv.mx.core.auth.dto.SignUpDtos.UserResponse;
 import com.gv.mx.core.auth.dto.UsersDtos.AdminChangePasswordRequest;
 import com.gv.mx.core.auth.dto.UsersDtos.ChangePasswordRequest;
-import com.gv.mx.core.auth.dto.UsersDtos.UserView;
 import com.gv.mx.core.auth.dto.UsersDtos.RolesUpdateRequest;
+import com.gv.mx.core.auth.dto.UsersDtos.UserView;
+import com.gv.mx.core.auth.repo.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,9 +28,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/auth", produces = "application/json")
@@ -38,43 +45,99 @@ public class AuthController {
     private final UserDetailsService uds;
     private final JwtService jwt;
     private final UserAdminService userAdmin;
+    private final RefreshTokenService refreshSvc;
+    private final UserRepository usersRepo;
 
     public AuthController(AuthenticationManager authManager,
                           UserDetailsService uds,
                           JwtService jwt,
-                          UserAdminService userAdmin) {
+                          UserAdminService userAdmin,
+                          RefreshTokenService refreshSvc,
+                          UserRepository usersRepo) {
         this.authManager = authManager;
         this.uds = uds;
         this.jwt = jwt;
         this.userAdmin = userAdmin;
+        this.refreshSvc = refreshSvc;
+        this.usersRepo = usersRepo;
     }
 
-    // ---- Login
+    private String clientIp() {
+        var req = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+        String ip = req.getHeader("X-Forwarded-For");
+        return (ip != null && !ip.isBlank()) ? ip.split(",")[0].trim() : req.getRemoteAddr();
+    }
+
+    private String clientUA() {
+        var req = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+        return Optional.ofNullable(req.getHeader("User-Agent")).orElse("unknown");
+    }
+
+    // ---- Login (emite familia + refresh persistido)
     @PostMapping(value = "/login", consumes = "application/json")
-    @Operation(summary = "Obtener access/refresh tokens")
+    @Operation(summary = "Obtener access/refresh tokens (con rotación)")
     public ResponseEntity<TokenPairResponse> login(@Valid @RequestBody LoginRequest req) {
         Authentication auth = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.username, req.password)
         );
         String access = jwt.generateAccess(auth);
+
         UserDetails user = uds.loadUserByUsername(auth.getName());
-        String refresh = jwt.generateRefresh(user);
+        Long userId = usersRepo.findByUsername(user.getUsername()).map(UserAccount::getId)
+                .orElseThrow(() -> new BadCredentialsException("Usuario no existe"));
+
+        UUID family = refreshSvc.newFamilyId();
+        UUID jti = refreshSvc.newJti();
+        refreshSvc.issue(userId, family, jti, clientIp(), clientUA());
+
+        String refresh = jwt.generateRefresh(user, family, jti);
         return ResponseEntity.ok(new TokenPairResponse(access, refresh));
     }
 
-    // ---- Refresh
+    // ---- Refresh (rotación + detección de re-use)
     @PostMapping(value = "/refresh", consumes = "application/json")
-    @Operation(summary = "Obtener nuevo access token usando refresh")
-    public ResponseEntity<AccessResponse> refresh(@Valid @RequestBody RefreshRequest req) {
+    @Operation(summary = "Obtener nuevo access/refresh (rotación)")
+    public ResponseEntity<TokenPairResponse> refresh(@Valid @RequestBody RefreshRequest req) {
         Jwt decoded = jwt.decode(req.refresh);
-        String typ = decoded.getClaimAsString("typ");
-        if (!"refresh".equals(typ)) {
+        if (!"refresh".equals(decoded.getClaimAsString("typ"))) {
             throw new BadCredentialsException("Refresh token inválido (typ != refresh)");
         }
+        UUID jti = UUID.fromString(decoded.getClaimAsString("jti"));
+        UUID familyId = UUID.fromString(decoded.getClaimAsString("family_id"));
         String username = decoded.getSubject();
+
+        var newRt = refreshSvc.rotateOrDetectReuse(jti);
+
         UserDetails user = uds.loadUserByUsername(username);
-        String newAccess = jwt.generateAccess(user);
-        return ResponseEntity.ok(new AccessResponse(newAccess));
+        String access = jwt.generateAccess(user);
+        String newRefresh = jwt.generateRefresh(user, familyId, newRt.getJti());
+
+        return ResponseEntity.ok(new TokenPairResponse(access, newRefresh));
+    }
+
+    // ---- Logout de familia actual (requiere refresh para identificar familia)
+    @PostMapping(value = "/logout", consumes = "application/json")
+    @Operation(summary = "Logout de la sesión (familia actual). Requiere refresh.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest body) {
+        Jwt decoded = jwt.decode(body.refresh);
+        if (!"refresh".equals(decoded.getClaimAsString("typ"))) {
+            throw new BadCredentialsException("Refresh inválido");
+        }
+        UUID familyId = UUID.fromString(decoded.getClaimAsString("family_id"));
+        refreshSvc.revokeFamily(familyId, "logout");
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---- Logout de TODAS las sesiones del usuario
+    @PostMapping(value = "/logout-all")
+    @Operation(summary = "Logout de todas las sesiones del usuario")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<Void> logoutAll(Principal principal) {
+        Long userId = usersRepo.findByUsername(principal.getName()).map(UserAccount::getId)
+                .orElseThrow(() -> new BadCredentialsException("Usuario no existe"));
+        refreshSvc.revokeAllByUser(userId, "logout_all");
+        return ResponseEntity.noContent().build();
     }
 
     // ---- Signup (ADMIN-only)
