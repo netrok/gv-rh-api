@@ -1,14 +1,16 @@
+// src/main/java/com/gv/mx/empleados/infrastructure/EmpleadoRepository.java
 package com.gv.mx.empleados.infrastructure;
 
 import com.gv.mx.empleados.domain.Empleado;
 import com.gv.mx.empleados.infrastructure.projections.ExportEmpleadoProjectionWithNames;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
+@Repository
+public interface EmpleadoRepository extends JpaRepository<Empleado, Long>, JpaSpecificationExecutor<Empleado> {
 
     @Query(value = """
         SELECT
@@ -23,8 +25,8 @@ public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
           e.fecha_ingreso      AS fechaIngreso,
           e.activo             AS activo
         FROM empleados e
-        LEFT JOIN departamentos d ON d.id = e.departamento_id
-        LEFT JOIN puestos       p ON p.id = e.puesto_id
+        LEFT JOIN cat_departamentos d ON d.id = e.departamento_id
+        LEFT JOIN cat_puestos       p ON p.id = e.puesto_id
         WHERE (:q IS NULL OR
                LOWER(CONCAT_WS(' ',
                  e.num_empleado, e.nombres, e.apellido_paterno, e.apellido_materno, e.email

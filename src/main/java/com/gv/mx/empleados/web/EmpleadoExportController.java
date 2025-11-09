@@ -1,11 +1,15 @@
-// src/main/java/com/gv/mx/empleados/web/EmpleadoExportController.java
 package com.gv.mx.empleados.web;
 
 import com.gv.mx.empleados.application.EmpleadoExportService;
+import com.gv.mx.empleados.application.EmpleadoFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,65 +19,88 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @RestController
-@RequestMapping("/api/empleados")
+@RequestMapping("/api/empleados/export")
 @RequiredArgsConstructor
 public class EmpleadoExportController {
 
-    private final EmpleadoExportService exportService;
+    private final EmpleadoExportService export;
 
-    @GetMapping("/export")
-    @Operation(summary = "Exporta empleados (XLSX o PDF) con filtros (q, departamentoId, puestoId, activo)")
-    // Usa UNO de los dos, según tu SecurityConfig:
-    // Si tu converter agrega ROLE_: usa hasAnyRole
+    @GetMapping(
+            value = "/xlsx",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
-    // Si usas authorities planas sin ROLE_: usa hasAnyAuthority
-    // @PreAuthorize("hasAnyAuthority('ADMIN','RRHH')")
-    public ResponseEntity<byte[]> export(
-            @Parameter(description = "Formato de salida (xlsx|pdf)")
-            @RequestParam
-            @Pattern(regexp = "xlsx|pdf", message = "format debe ser xlsx o pdf")
-            String format,
+    @Operation(summary = "Exporta empleados a XLSX (ADMIN/RRHH)")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "XLSX generado",
+                    content = @Content(
+                            mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            schema = @Schema(type = "string", format = "binary")
+                    )
+            )
+    })
+    public ResponseEntity<byte[]> xlsx(
+            @Parameter(description = "Búsqueda libre") @RequestParam(required = false) String q,
+            @Parameter(description = "ID de Departamento") @RequestParam(required = false) Long departamentoId,
+            @Parameter(description = "ID de Puesto") @RequestParam(required = false) Long puestoId,
+            @Parameter(description = "Activo (true/false)") @RequestParam(required = false) Boolean activo,
+            @Parameter(description = "Fecha ingreso desde (YYYY-MM-DD)")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoDesde,
+            @Parameter(description = "Fecha ingreso hasta (YYYY-MM-DD)")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoHasta
+    ) {
+        var f = new EmpleadoFilter(q, departamentoId, puestoId, activo, fechaIngresoDesde, fechaIngresoHasta);
+        byte[] bytes = export.exportXlsx(f);
 
-            @Parameter(description = "Búsqueda libre en numEmpleado, nombre y email")
-            @RequestParam(required = false) String q,
-
-            @Parameter(description = "Filtro por departamento (id)")
-            @RequestParam(required = false) Long departamentoId,
-
-            @Parameter(description = "Filtro por puesto (id)")
-            @RequestParam(required = false) Long puestoId,
-
-            @Parameter(description = "Filtro por estado activo")
-            @RequestParam(required = false) Boolean activo
-    ) throws Exception {
-
-        var rows = exportService.getRows(q, departamentoId, puestoId, activo);
-
-        byte[] bytes;
-        MediaType contentType;
-        if ("xlsx".equalsIgnoreCase(format)) {
-            bytes = exportService.toXlsx(rows);
-            contentType = MediaType.parseMediaType(
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        } else { // pdf
-            bytes = exportService.toPdf(rows);
-            contentType = MediaType.APPLICATION_PDF;
-        }
-
-        // Nombre de archivo con timestamp y codificación RFC 5987
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String baseName = "empleados_" + timestamp + "." + format.toLowerCase();
-        String encoded = URLEncoder.encode(baseName, StandardCharsets.UTF_8); // filename* para UTF-8
-        String contentDisposition = "attachment; filename=\"" + baseName + "\"; filename*=UTF-8''" + encoded;
+        String base = "empleados_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+        String encoded = URLEncoder.encode(base, StandardCharsets.UTF_8);
 
         return ResponseEntity.ok()
-                .contentType(contentType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
-                .cacheControl(CacheControl.noCache()) // evita cache del navegador
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + "\"; filename*=UTF-8''" + encoded)
+                .cacheControl(CacheControl.noCache())
+                .body(bytes);
+    }
+
+    @GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @Operation(summary = "Exporta empleados a PDF (ADMIN/RRHH)")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "PDF generado",
+                    content = @Content(
+                            mediaType = "application/pdf",
+                            schema = @Schema(type = "string", format = "binary")
+                    )
+            )
+    })
+    public ResponseEntity<byte[]> pdf(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long departamentoId,
+            @RequestParam(required = false) Long puestoId,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoHasta
+    ) {
+        var f = new EmpleadoFilter(q, departamentoId, puestoId, activo, fechaIngresoDesde, fechaIngresoHasta);
+        byte[] bytes = export.exportPdf(f);
+
+        String base = "empleados_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+        String encoded = URLEncoder.encode(base, StandardCharsets.UTF_8);
+
+        // OJO: usa 'attachment' (no inline) para que Swagger UI ofrezca "Download file"
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + "\"; filename*=UTF-8''" + encoded)
+                .cacheControl(CacheControl.noCache())
                 .body(bytes);
     }
 }
