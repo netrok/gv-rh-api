@@ -1,40 +1,37 @@
 package com.gv.mx.catalogos.domain;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
 @Getter @Setter
-@NoArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 @Entity
-@Table(name = "cat_departamentos",
+@Table(name = "cat_tipos_jornada",
         indexes = {
-                @Index(name = "ix_dep_nombre", columnList = "nombre"),
-                @Index(name = "ix_dep_activo",  columnList = "activo")
+                @Index(name = "ix_tipo_jornada_nombre", columnList = "nombre"),
+                @Index(name = "ix_tipo_jornada_activo", columnList = "activo")
         })
-public class Departamento {
+public class TipoJornada {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank @Size(max = 120)
     @Column(nullable = false, unique = true, length = 120)
     private String nombre;
 
-    @NotNull
+    // Wrapper para poder hacer null-check en services
     @Column(nullable = false)
-    private Boolean activo = true;   // default real
+    private Boolean activo;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @Builder
-    public Departamento(String nombre, Boolean activo) {
-        this.nombre = nombre;
-        this.activo = (activo == null) ? Boolean.TRUE : activo; // default si no lo pasan
+    @PrePersist
+    void prePersist() {
+        if (activo == null) activo = Boolean.TRUE;
     }
 }

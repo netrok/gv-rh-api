@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TipoJornadaRepository extends JpaRepository<TipoJornada, Long> {
     Page<TipoJornada> findByNombreContainingIgnoreCase(String q, Pageable pageable);
     boolean existsByNombreIgnoreCase(String nombre);
+    boolean existsByNombreIgnoreCaseAndIdNot(String nombre, Long id);
 }

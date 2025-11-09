@@ -14,8 +14,14 @@ public class MotivoBaja {
     private String nombre;
 
     @Column(nullable=false)
-    private Boolean activo = true;
+    private Boolean activo; // wrapper
 
     @Column(name = "created_at", nullable=false, updatable=false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
+
+    @PrePersist
+    void prePersist() {
+        if (activo == null)   activo = Boolean.TRUE;
+        if (createdAt == null) createdAt = Instant.now();
+    }
 }

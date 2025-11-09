@@ -2,20 +2,23 @@ package com.gv.mx.catalogos.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.time.LocalTime;
 
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
 @Entity
 @Table(name = "cat_horarios",
         indexes = {
                 @Index(name = "ix_horario_nombre", columnList = "nombre"),
                 @Index(name = "ix_horario_activo", columnList = "activo")
         })
-@Getter @Setter @Builder
-@NoArgsConstructor @AllArgsConstructor
 public class Horario {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,22 +36,39 @@ public class Horario {
     @Column(name = "hora_salida", nullable = false)
     private LocalTime horaSalida;
 
-    @NotNull @Min(0) @Max(600)
+    // Wrapper para permitir null-checks en el service
+    @Min(0) @Max(600)
     @Column(name = "minutos_comida", nullable = false)
-    private Integer minutosComida = 0;
+    private Integer minutosComida;
 
-    @Column(nullable = false) private Boolean lunes     = true;
-    @Column(nullable = false) private Boolean martes    = true;
-    @Column(nullable = false) private Boolean miercoles = true;
-    @Column(nullable = false) private Boolean jueves    = true;
-    @Column(nullable = false) private Boolean viernes   = true;
-    @Column(nullable = false) private Boolean sabado    = false;
-    @Column(nullable = false) private Boolean domingo   = false;
+    // Wrappers (no primitivos) para permitir null-checks en el service
+    @Column(nullable = false) private Boolean lunes;
+    @Column(nullable = false) private Boolean martes;
+    @Column(nullable = false) private Boolean miercoles;
+    @Column(nullable = false) private Boolean jueves;
+    @Column(nullable = false) private Boolean viernes;
+    @Column(nullable = false) private Boolean sabado;
+    @Column(nullable = false) private Boolean domingo;
 
     @Column(nullable = false)
-    private Boolean activo = true;
+    private Boolean activo;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    @PrePersist
+    void prePersist() {
+        if (minutosComida == null) minutosComida = 0;
+
+        if (lunes     == null) lunes     = Boolean.TRUE;
+        if (martes    == null) martes    = Boolean.TRUE;
+        if (miercoles == null) miercoles = Boolean.TRUE;
+        if (jueves    == null) jueves    = Boolean.TRUE;
+        if (viernes   == null) viernes   = Boolean.TRUE;
+        if (sabado    == null) sabado    = Boolean.FALSE;
+        if (domingo   == null) domingo   = Boolean.FALSE;
+
+        if (activo    == null) activo    = Boolean.TRUE;
+    }
 }
