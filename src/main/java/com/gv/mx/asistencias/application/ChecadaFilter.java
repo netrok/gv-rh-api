@@ -1,11 +1,19 @@
 package com.gv.mx.asistencias.application;
 
-import java.time.LocalDate;
+import jakarta.validation.constraints.Pattern;
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.time.LocalDateTime;
 
 public record ChecadaFilter(
         Long empleadoId,
-        LocalDateTime desde,
-        LocalDateTime hasta,
-        String tipo // "ENT" | "SAL" | null
-) {}
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta,
+        @Pattern(regexp = "ENT|SAL", message = "tipo debe ser ENT o SAL") String tipo
+) {
+    public void validate() {
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new IllegalArgumentException("Rango de fechas inválido (desde > hasta).");
+        }
+    }
+}

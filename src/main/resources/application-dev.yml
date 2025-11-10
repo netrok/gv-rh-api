@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gv_rh
+    username: postgres
+    password: riesenhammer
+    hikari:
+      pool-name: gvHikari
+      maximum-pool-size: 15
+      minimum-idle: 3
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  mvc:
+    cors:
+      mappings:
+        "/api/**":
+          allowed-origins: "http://localhost:3000,http://localhost:5173"
+          allowed-methods: "*"
+          allowed-headers: "*"
+          allow-credentials: true
+          max-age: 3600
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    org.springframework.security: INFO

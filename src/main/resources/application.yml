@@ -6,6 +6,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/gv_rh
     username: postgres
     password: riesenhammer
+    driver-class-name: org.postgresql.Driver   # opcional; ayuda a evitar dudas
   jpa:
     open-in-view: false
     hibernate:
@@ -19,14 +20,16 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
+  mvc:
+    throw-exception-if-no-handler-found: true
   web:
     resources:
       add-mappings: false
 
 app:
   jwt:
-    # 🔐 32+ bytes en Base64 (elige SOLO uno; aquí uso este)
-    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==  # 32+ bytes
+    # 32+ bytes en Base64
+    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==
     issuer: gv-rh-api
     access-minutes: 60
     refresh-minutes: 43200

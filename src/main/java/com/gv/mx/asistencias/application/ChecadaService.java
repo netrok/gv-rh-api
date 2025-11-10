@@ -1,10 +1,11 @@
 package com.gv.mx.asistencias.application;
 
-import com.gv.mx.asistencias.domain.Checada;
+import com.gv.mx.asistencias.dto.ChecadaDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface ChecadaService {
-    Checada registrar(Checada c);
-    Page<Checada> listar(ChecadaFilter f, Pageable pageable);
+    Page<ChecadaDTO> listar(ChecadaFilter filtro, Pageable pageable);
+    ChecadaDTO crear(ChecadaDTO dto);
+    void eliminar(Long id);
 }

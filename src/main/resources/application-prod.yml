@@ -1,0 +1,27 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    hikari:
+      pool-name: gvHikari
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:30000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+      connection-timeout: ${DB_CONN_TIMEOUT_MS:30000}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN
+    org.hibernate.SQL: WARN

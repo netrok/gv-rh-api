@@ -5,36 +5,60 @@ import com.gv.mx.asistencias.domain.Asistencia;
 import com.gv.mx.asistencias.domain.Checada;
 import com.gv.mx.asistencias.dto.AsistenciaDTO;
 import com.gv.mx.asistencias.dto.ChecadaDTO;
+import org.springframework.stereotype.Component;
 
-public final class AsistenciasMapper {
-    private AsistenciasMapper() {}
+@Component
+public class AsistenciasMapper {
 
-    public static ChecadaDTO toDTO(Checada c) {
-        // Usamos getTipo() en lugar de getTipoChecada()
-        var tipo = (c.getTipo() != null) ? c.getTipo().name() : null;
+    // --- Checada -> ChecadaDTO (record) ---
+    public ChecadaDTO toDto(Checada c) {
+        if (c == null) return null;
+
+        // tipo (enum o String) -> String
+        String tipoStr = null;
+        Object tipo = safe(() -> c.getTipo()); // usa getTipo(); si tu entity usa otro nombre, me dices
+        if (tipo instanceof Enum<?> e) tipoStr = e.name();
+        else if (tipo != null) tipoStr = tipo.toString();
+
+        // empleadoId directo; si tienes ManyToOne empleado, cambia a: c.getEmpleado() != null ? c.getEmpleado().getId() : null
+        Long empId = safe(() -> c.getEmpleadoId());
 
         return new ChecadaDTO(
-                c.getEmpleadoId(),
-                tipo,
+                empId,
+                tipoStr,
                 c.getFechaHora(),
                 c.getDispositivo(),
                 c.getUbicacion()
         );
     }
 
-    public static AsistenciaDTO toDTO(Asistencia a) {
-        // Campos opcionales enviados como null si aún no existen en la entidad
+    // --- Asistencia -> AsistenciaDTO (record) ---
+    public AsistenciaDTO toDto(Asistencia a) {
+        if (a == null) return null;
+
+        String estado = a.getEstado() != null ? a.getEstado().name() : null;
+
+        // empleadoId directo; si tienes ManyToOne empleado, cambia a: a.getEmpleado() != null ? a.getEmpleado().getId() : null
+        Long empId = safe(() -> a.getEmpleadoId());
+
+        // Estos campos aún no existen en tu entity -> nuléalos
         Integer minutosRetardo = null;
         Integer minutosAnticipoSalida = null;
         String notas = null;
 
         return new AsistenciaDTO(
-                a.getEmpleadoId(),
+                empId,
                 a.getFecha(),
-                (a.getEstado() != null) ? a.getEstado().name() : null,
+                estado,
                 minutosRetardo,
                 minutosAnticipoSalida,
                 notas
         );
     }
+
+    // helper
+    private static <T> T safe(SupplierLike<T> s) {
+        try { return s.get(); } catch (Throwable ignored) { return null; }
+    }
+    @FunctionalInterface private interface SupplierLike<T> { T get(); }
 }
