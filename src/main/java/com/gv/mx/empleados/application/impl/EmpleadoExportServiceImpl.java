@@ -1,7 +1,9 @@
+// src/main/java/com/gv/mx/empleados/application/impl/EmpleadoExportServiceImpl.java
 package com.gv.mx.empleados.application.impl;
 
 import com.gv.mx.empleados.application.EmpleadoExportService;
 import com.gv.mx.empleados.application.EmpleadoFilter;
+import com.gv.mx.empleados.application.export.EmpleadoPdfExporter;
 import com.gv.mx.empleados.dto.ExportEmpleadoRow;
 import com.gv.mx.empleados.infrastructure.EmpleadoRepository;
 import com.gv.mx.empleados.infrastructure.projections.ExportEmpleadoProjectionWithNames;
@@ -13,17 +15,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.lowagie.text.Document;
-import com.lowagie.text.FontFactory;
-import com.lowagie.text.PageSize;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
-
 import java.io.ByteArrayOutputStream;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -42,14 +34,28 @@ public class EmpleadoExportServiceImpl implements EmpleadoExportService {
     @Override
     public byte[] exportPdf(EmpleadoFilter f) {
         var rows = toRows(f);
-        return toPdf(rows);
+        try {
+            var exporter = new EmpleadoPdfExporter(
+                    rows,
+                    EmpleadoPdfExporter.Options.builder()
+                            .titulo("Listado de Empleados")
+                            .empresa("Gran Vía")
+                            .autor("GV RH")
+                            .logoClasspath("static/logo.png") // opcional
+                            .landscape(true)
+                            .build()
+            );
+            return exporter.export();
+        } catch (Exception ex) {
+            throw new RuntimeException("No fue posible generar el PDF", ex);
+        }
     }
 
     // ---- helpers ----
     private List<ExportEmpleadoRow> toRows(EmpleadoFilter f) {
         List<ExportEmpleadoProjectionWithNames> data =
                 repo.findForExport(
-                        f.q(),              // asumiendo EmpleadoFilter es record: q(), departamentoId(), ...
+                        f.q(),
                         f.departamentoId(),
                         f.puestoId(),
                         f.activo()
@@ -122,52 +128,5 @@ public class EmpleadoExportServiceImpl implements EmpleadoExportService {
         }
     }
 
-    private byte[] toPdf(List<ExportEmpleadoRow> rows) {
-        try (var out = new ByteArrayOutputStream()) {
-            var doc = new Document(PageSize.LETTER.rotate(), 36, 36, 28, 28);
-            var writer = PdfWriter.getInstance(doc, out);
-            doc.addAuthor("GV RH");
-            doc.addTitle("Empleados");
-            doc.open();
-
-            var title = new Paragraph("Listado de Empleados\n\n",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
-            doc.add(title);
-
-            String[] cols = {"ID","NumEmpleado","Nombre","Apellidos","Email","Departamento","Puesto","FechaIngreso","Activo"};
-            var table = new PdfPTable(cols.length);
-            table.setWidthPercentage(100);
-
-            // header
-            for (var c : cols) {
-                var cell = new PdfPCell(new Phrase(c,
-                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9)));
-                cell.setGrayFill(0.9f);
-                table.addCell(cell);
-            }
-
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            for (var x : rows) {
-                table.addCell(n(x.id()));
-                table.addCell(s(x.numEmpleado()));
-                table.addCell(s(x.nombres()));
-                table.addCell((s(x.apellidoPaterno()) + " " + s(x.apellidoMaterno())).trim());
-                table.addCell(s(x.email()));
-                table.addCell(s(x.departamento()));
-                table.addCell(s(x.puesto()));
-                table.addCell(x.fechaIngreso() != null ? x.fechaIngreso().format(fmt) : "");
-                table.addCell(Boolean.TRUE.equals(x.activo()) ? "Sí" : "No");
-            }
-
-            doc.add(table);
-            doc.close();
-            writer.close();
-            return out.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Error generando PDF", e);
-        }
-    }
-
     private static String s(String v) { return v == null ? "" : v; }
-    private static String n(Object v) { return v == null ? "" : String.valueOf(v); }
 }

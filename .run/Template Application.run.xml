@@ -1,6 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Main" type="Application" factoryName="Application">
-    <option name="MAIN_CLASS_NAME" value="com.gv.mx.Application" />
+  <configuration default="true" type="Application" factoryName="Application">
     <module name="gv-rh-api" />
     <method v="2">
       <option name="Make" enabled="true" />
