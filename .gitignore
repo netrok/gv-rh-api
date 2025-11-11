@@ -61,3 +61,4 @@ application-local.yml
 
 # Si usas ejemplos, déjalos versionados:
 # application.yml.example
+.run/
