@@ -120,6 +120,7 @@ public class AuthController {
     @PostMapping(value = "/logout", consumes = "application/json")
     @Operation(summary = "Logout de la sesión (familia actual). Requiere refresh.")
     @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest body) {
         Jwt decoded = jwt.decode(body.refresh);
         if (!"refresh".equals(decoded.getClaimAsString("typ"))) {
@@ -134,6 +135,7 @@ public class AuthController {
     @PostMapping(value = "/logout-all")
     @Operation(summary = "Logout de todas las sesiones del usuario")
     @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logoutAll(Principal principal) {
         Long userId = usersRepo.findByUsername(principal.getName()).map(UserAccount::getId)
                 .orElseThrow(() -> new BadCredentialsException("Usuario no existe"));
@@ -210,6 +212,7 @@ public class AuthController {
     @PostMapping(value = "/change-password", consumes = "application/json")
     @Operation(summary = "Cambiar mi contraseña (autenticado)")
     @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> changePassword(Principal principal,
                                                @Valid @RequestBody ChangePasswordRequest req) {
         userAdmin.changeOwnPassword(principal.getName(), req.currentPassword, req.newPassword);

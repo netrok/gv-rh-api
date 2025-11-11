@@ -5,8 +5,8 @@ import com.gv.mx.core.auth.domain.Role;
 import com.gv.mx.core.auth.domain.UserAccount;
 import com.gv.mx.core.auth.dto.SignUpDtos.CreateUserRequest;
 import com.gv.mx.core.auth.dto.SignUpDtos.UserResponse;
-import com.gv.mx.core.auth.dto.UsersDtos.UserView;
 import com.gv.mx.core.auth.dto.UsersDtos.RolesUpdateRequest;
+import com.gv.mx.core.auth.dto.UsersDtos.UserView;
 import com.gv.mx.core.auth.repo.RoleRepository;
 import com.gv.mx.core.auth.repo.UserRepository;
 import jakarta.transaction.Transactional;
@@ -35,9 +35,13 @@ public class UserAdminService {
     // --------- Alta de usuario ----------
     @Transactional
     public UserResponse createUser(CreateUserRequest req) {
+        if (req == null || req.username == null || req.username.isBlank() || req.password == null || req.password.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "username y password son requeridos");
+        }
         if (users.existsByUsername(req.username)) {
             throw new ResponseStatusException(CONFLICT, "Username ya existe: " + req.username);
         }
+
         UserAccount u = new UserAccount();
         u.setUsername(req.username);
         u.setPassword(enc.encode(req.password));
@@ -45,6 +49,7 @@ public class UserAdminService {
 
         if (req.roles != null) {
             for (String r : req.roles) {
+                if (r == null || r.isBlank()) continue;
                 Role role = roles.findByName(r)
                         .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Rol inexistente: " + r));
                 u.getRoles().add(role);
@@ -57,10 +62,10 @@ public class UserAdminService {
     }
 
     // --------- Listado / detalle ----------
-    @Transactional
+    @Transactional(value = Transactional.TxType.SUPPORTS)
     public List<UserView> listUsers() {
         return users.findAll().stream()
-                .sorted(Comparator.comparing(UserAccount::getUsername))
+                .sorted(Comparator.comparing(UserAccount::getUsername, String.CASE_INSENSITIVE_ORDER))
                 .map(u -> new UserView(
                         u.getId(),
                         u.getUsername(),
@@ -70,7 +75,7 @@ public class UserAdminService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(value = Transactional.TxType.SUPPORTS)
     public UserView getUser(Long id) {
         UserAccount u = users.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario no encontrado"));
@@ -85,6 +90,9 @@ public class UserAdminService {
     // --------- Cambios de contraseña ----------
     @Transactional
     public void changeOwnPassword(String username, String current, String next) {
+        if (next == null || next.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Nueva contraseña requerida");
+        }
         UserAccount u = users.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario no encontrado"));
         if (!enc.matches(current, u.getPassword())) {
@@ -96,6 +104,9 @@ public class UserAdminService {
 
     @Transactional
     public void adminChangePassword(String targetUsername, String next) {
+        if (next == null || next.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Nueva contraseña requerida");
+        }
         UserAccount u = users.findByUsername(targetUsername)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario no encontrado"));
         u.setPassword(enc.encode(next));

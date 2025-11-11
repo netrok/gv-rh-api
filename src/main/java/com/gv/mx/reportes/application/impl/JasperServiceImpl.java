@@ -1,35 +1,39 @@
 package com.gv.mx.reportes.application.impl;
 
 import com.gv.mx.reportes.application.JasperService;
-import net.sf.jasperreports.engine.JREmptyDataSource;
-import net.sf.jasperreports.engine.JRDataSource;
-import net.sf.jasperreports.engine.JasperCompileManager;
-import net.sf.jasperreports.engine.JasperExportManager;
-import net.sf.jasperreports.engine.JasperFillManager;
-import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class JasperServiceImpl implements JasperService {
 
+    private final ConcurrentHashMap<String, JasperReport> cache = new ConcurrentHashMap<>();
+
     @Override
-    public byte[] exportPdf(String jrxmlClasspath, Map<String, Object> params) {
-        try (InputStream in = new ClassPathResource(jrxmlClasspath).getInputStream()) {
-            JasperReport report = JasperCompileManager.compileReport(in);
+    public byte[] renderPdfFromBeans(String jrxmlOnClasspath, Map<String, Object> params, java.util.Collection<?> beans) throws Exception {
+        JRBeanCollectionDataSource ds = new JRBeanCollectionDataSource(beans != null ? beans : java.util.List.of());
+        return renderPdf(jrxmlOnClasspath, params, ds);
+    }
 
-            JRDataSource ds = new JREmptyDataSource(); // sin engine.data
-            Map<String,Object> prms = (params != null) ? params : Collections.emptyMap();
+    @Override
+    public byte[] renderPdf(String jrxmlOnClasspath, Map<String, Object> params, JRDataSource dataSource) throws Exception {
+        JasperReport report = cache.computeIfAbsent(jrxmlOnClasspath, this::compileUnchecked);
+        JasperPrint print = JasperFillManager.fillReport(report, params != null ? params : Map.of(),
+                dataSource != null ? dataSource : new JREmptyDataSource());
+        return JasperExportManager.exportReportToPdf(print);
+    }
 
-            JasperPrint print = JasperFillManager.fillReport(report, prms, ds);
-            return JasperExportManager.exportReportToPdf(print);
+    private JasperReport compileUnchecked(String jrxmlPath) {
+        try (InputStream in = new ClassPathResource(jrxmlPath).getInputStream()) {
+            return JasperCompileManager.compileReport(in);
         } catch (Exception e) {
-            throw new RuntimeException("Error generando PDF Jasper: " + e.getMessage(), e);
+            throw new IllegalStateException("No se pudo compilar JRXML: " + jrxmlPath, e);
         }
     }
 }

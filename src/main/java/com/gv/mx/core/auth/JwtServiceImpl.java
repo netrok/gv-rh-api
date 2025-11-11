@@ -1,7 +1,6 @@
 // src/main/java/com/gv/mx/core/auth/JwtServiceImpl.java
 package com.gv.mx.core.auth;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -21,16 +20,12 @@ public class JwtServiceImpl implements JwtService {
     private final long accessMinutes;
     private final long refreshMinutes;
 
-    public JwtServiceImpl(JwtEncoder encoder,
-                          JwtDecoder decoder,
-                          @Value("${app.jwt.issuer}") String issuer,
-                          @Value("${app.jwt.access-minutes}") long accessMinutes,
-                          @Value("${app.jwt.refresh-minutes}") long refreshMinutes) {
+    public JwtServiceImpl(JwtEncoder encoder, JwtDecoder decoder, JwtProperties props) {
         this.encoder = encoder;
         this.decoder = decoder;
-        this.issuer = issuer;
-        this.accessMinutes = accessMinutes;
-        this.refreshMinutes = refreshMinutes;
+        this.issuer = props.getIssuer();
+        this.accessMinutes = Math.max(1, props.getAccessMinutes());   // hardening mínimo 1 min
+        this.refreshMinutes = Math.max(1, props.getRefreshMinutes()); // hardening mínimo 1 min
     }
 
     @Override
@@ -64,11 +59,8 @@ public class JwtServiceImpl implements JwtService {
                 .toList();
 
         Map<String, Object> claims = baseClaims("refresh", roles);
-        // Null-safety
-        if (familyId != null) claims.put("family_id", familyId.toString());
+        if (familyId != null) claims.put("family_id", familyId.toString()); // <-- usado por AuthController
         if (jti != null)      claims.put("jti", jti.toString());
-
-        // Asignamos exp para refresh; la rotación/blacklist la controla BD
         return encodeWithExp(user.getUsername(), claims, refreshMinutes);
     }
 
@@ -77,11 +69,10 @@ public class JwtServiceImpl implements JwtService {
         return decoder.decode(token);
     }
 
-    // ===== Helpers =====
-
+    // -------- helpers --------
     private Map<String, Object> baseClaims(String typ, List<String> roles) {
         Map<String, Object> claims = new HashMap<>();
-        var cleaned = roles == null ? List.<String>of() : roles;
+        var cleaned = (roles == null) ? List.<String>of() : roles;
         claims.put("roles", cleaned);
         claims.put("scope", String.join(" ", cleaned));
         claims.put("typ", typ);
@@ -89,6 +80,7 @@ public class JwtServiceImpl implements JwtService {
     }
 
     private String encodeWithExp(String subject, Map<String, Object> claims, long minutes) {
+        // Un solo reloj para evitar “expiresAt must be after issuedAt”
         Instant now = Instant.now();
         JwtClaimsSet set = JwtClaimsSet.builder()
                 .issuer(issuer)

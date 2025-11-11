@@ -37,10 +37,11 @@ springdoc:
 
 app:
   jwt:
-    # 32+ bytes en Base64
+    # Clave BASE64 (32+ bytes reales antes de base64).
     secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==
     issuer: gv-rh-api
-    access-minutes: 60
+    access-minutes: 60          # <-- nombres que espera JwtProperties
     refresh-minutes: 43200
+    max-families-per-user: 5
   vacaciones:
     incluir_feriados_extra: false
