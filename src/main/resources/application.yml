@@ -6,7 +6,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/gv_rh
     username: postgres
     password: riesenhammer
-    driver-class-name: org.postgresql.Driver   # opcional; ayuda a evitar dudas
+    driver-class-name: org.postgresql.Driver
   jpa:
     open-in-view: false
     hibernate:
@@ -26,14 +26,6 @@ spring:
     resources:
       add-mappings: false
 
-app:
-  jwt:
-    # 32+ bytes en Base64
-    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==
-    issuer: gv-rh-api
-    access-minutes: 60
-    refresh-minutes: 43200
-
 springdoc:
   api-docs:
     enabled: true
@@ -42,3 +34,13 @@ springdoc:
     path: /swagger-ui/index.html
     display-request-duration: true
     persist-authorization: true
+
+app:
+  jwt:
+    # 32+ bytes en Base64
+    secret: VGhpcy1pcy1hLXN1cGVyLWxvbmcgMzItYnl0ZSBrZXkgYmFzZTY0IQ==
+    issuer: gv-rh-api
+    access-minutes: 60
+    refresh-minutes: 43200
+  vacaciones:
+    incluir_feriados_extra: false

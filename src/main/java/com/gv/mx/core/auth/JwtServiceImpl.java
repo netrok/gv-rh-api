@@ -19,21 +19,25 @@ public class JwtServiceImpl implements JwtService {
     private final JwtDecoder decoder;
     private final String issuer;
     private final long accessMinutes;
+    private final long refreshMinutes;
 
     public JwtServiceImpl(JwtEncoder encoder,
                           JwtDecoder decoder,
                           @Value("${app.jwt.issuer}") String issuer,
-                          @Value("${app.jwt.access-minutes}") long accessMinutes) {
+                          @Value("${app.jwt.access-minutes}") long accessMinutes,
+                          @Value("${app.jwt.refresh-minutes}") long refreshMinutes) {
         this.encoder = encoder;
         this.decoder = decoder;
         this.issuer = issuer;
         this.accessMinutes = accessMinutes;
+        this.refreshMinutes = refreshMinutes;
     }
 
     @Override
     public String generateAccess(Authentication auth) {
         var roles = auth.getAuthorities().stream()
                 .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .distinct()
                 .toList();
         return generateAccessInternal(auth.getName(), roles);
     }
@@ -42,57 +46,59 @@ public class JwtServiceImpl implements JwtService {
     public String generateAccess(UserDetails user) {
         var roles = user.getAuthorities().stream()
                 .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .distinct()
                 .toList();
         return generateAccessInternal(user.getUsername(), roles);
     }
 
     private String generateAccessInternal(String username, List<String> roles) {
-        Instant now = Instant.now();
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("roles", roles);
-        claims.put("scope", String.join(" ", roles));
-        claims.put("typ", "access");
-
-        JwtClaimsSet set = JwtClaimsSet.builder()
-                .issuer(issuer)
-                .subject(username)
-                .issuedAt(now)
-                .expiresAt(now.plus(accessMinutes, ChronoUnit.MINUTES))
-                .claims(c -> c.putAll(claims))
-                .build();
-
-        JwsHeader jws = JwsHeader.with(MacAlgorithm.HS256).build();
-        return encoder.encode(JwtEncoderParameters.from(jws, set)).getTokenValue();
+        Map<String, Object> claims = baseClaims("access", roles);
+        return encodeWithExp(username, claims, accessMinutes);
     }
 
     @Override
     public String generateRefresh(UserDetails user, UUID familyId, UUID jti) {
-        Instant now = Instant.now();
         var roles = user.getAuthorities().stream()
                 .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .distinct()
                 .toList();
 
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("roles", roles);
-        claims.put("scope", String.join(" ", roles));
-        claims.put("typ", "refresh");
-        claims.put("family_id", familyId.toString());
-        claims.put("jti", jti.toString());
+        Map<String, Object> claims = baseClaims("refresh", roles);
+        // Null-safety
+        if (familyId != null) claims.put("family_id", familyId.toString());
+        if (jti != null)      claims.put("jti", jti.toString());
 
-        // La expiración real del refresh la controla la BD (registro en auth_refresh_tokens)
-        JwtClaimsSet set = JwtClaimsSet.builder()
-                .issuer(issuer)
-                .subject(user.getUsername())
-                .issuedAt(now)
-                .claims(c -> c.putAll(claims))
-                .build();
-
-        JwsHeader jws = JwsHeader.with(MacAlgorithm.HS256).build();
-        return encoder.encode(JwtEncoderParameters.from(jws, set)).getTokenValue();
+        // Asignamos exp para refresh; la rotación/blacklist la controla BD
+        return encodeWithExp(user.getUsername(), claims, refreshMinutes);
     }
 
     @Override
     public Jwt decode(String token) {
         return decoder.decode(token);
+    }
+
+    // ===== Helpers =====
+
+    private Map<String, Object> baseClaims(String typ, List<String> roles) {
+        Map<String, Object> claims = new HashMap<>();
+        var cleaned = roles == null ? List.<String>of() : roles;
+        claims.put("roles", cleaned);
+        claims.put("scope", String.join(" ", cleaned));
+        claims.put("typ", typ);
+        return claims;
+    }
+
+    private String encodeWithExp(String subject, Map<String, Object> claims, long minutes) {
+        Instant now = Instant.now();
+        JwtClaimsSet set = JwtClaimsSet.builder()
+                .issuer(issuer)
+                .subject(subject)
+                .issuedAt(now)
+                .expiresAt(now.plus(minutes, ChronoUnit.MINUTES))
+                .claims(c -> c.putAll(claims))
+                .build();
+
+        JwsHeader jws = JwsHeader.with(MacAlgorithm.HS256).build();
+        return encoder.encode(JwtEncoderParameters.from(jws, set)).getTokenValue();
     }
 }
