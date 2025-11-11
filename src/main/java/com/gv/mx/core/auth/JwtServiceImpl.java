@@ -24,14 +24,14 @@ public class JwtServiceImpl implements JwtService {
         this.encoder = encoder;
         this.decoder = decoder;
         this.issuer = props.getIssuer();
-        this.accessMinutes = Math.max(1, props.getAccessMinutes());   // hardening mínimo 1 min
-        this.refreshMinutes = Math.max(1, props.getRefreshMinutes()); // hardening mínimo 1 min
+        this.accessMinutes = Math.max(1, props.getAccessMinutes());
+        this.refreshMinutes = Math.max(1, props.getRefreshMinutes());
     }
 
     @Override
     public String generateAccess(Authentication auth) {
         var roles = auth.getAuthorities().stream()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .map(a -> a.getAuthority().replace("ROLE_", "")) // ROLE_ADMIN -> ADMIN
                 .distinct()
                 .toList();
         return generateAccessInternal(auth.getName(), roles);
@@ -48,6 +48,12 @@ public class JwtServiceImpl implements JwtService {
 
     private String generateAccessInternal(String username, List<String> roles) {
         Map<String, Object> claims = baseClaims("access", roles);
+
+        // Si tiene ADMIN o RRHH, otorgamos scope para reportes
+        if (roles.stream().anyMatch(r -> r.equalsIgnoreCase("ADMIN") || r.equalsIgnoreCase("RRHH"))) {
+            claims.put("scope", joinScopes(claims.get("scope"), "reportes.read"));
+        }
+
         return encodeWithExp(username, claims, accessMinutes);
     }
 
@@ -59,8 +65,9 @@ public class JwtServiceImpl implements JwtService {
                 .toList();
 
         Map<String, Object> claims = baseClaims("refresh", roles);
-        if (familyId != null) claims.put("family_id", familyId.toString()); // <-- usado por AuthController
+        if (familyId != null) claims.put("family_id", familyId.toString());
         if (jti != null)      claims.put("jti", jti.toString());
+
         return encodeWithExp(user.getUsername(), claims, refreshMinutes);
     }
 
@@ -72,15 +79,22 @@ public class JwtServiceImpl implements JwtService {
     // -------- helpers --------
     private Map<String, Object> baseClaims(String typ, List<String> roles) {
         Map<String, Object> claims = new HashMap<>();
-        var cleaned = (roles == null) ? List.<String>of() : roles;
-        claims.put("roles", cleaned);
-        claims.put("scope", String.join(" ", cleaned));
+        claims.put("roles", roles == null ? List.<String>of() : roles);
         claims.put("typ", typ);
         return claims;
     }
 
+    /** Une scopes existentes con nuevos, en formato espacio-separado (RFC 8693-like). */
+    private String joinScopes(Object existingScope, String... toAdd) {
+        var set = new LinkedHashSet<String>();
+        if (existingScope instanceof String s && !s.isBlank()) {
+            set.addAll(Arrays.asList(s.trim().split("\\s+")));
+        }
+        for (var s : toAdd) if (s != null && !s.isBlank()) set.add(s);
+        return String.join(" ", set);
+    }
+
     private String encodeWithExp(String subject, Map<String, Object> claims, long minutes) {
-        // Un solo reloj para evitar “expiresAt must be after issuedAt”
         Instant now = Instant.now();
         JwtClaimsSet set = JwtClaimsSet.builder()
                 .issuer(issuer)

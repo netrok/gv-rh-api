@@ -1,3 +1,4 @@
+// src/main/java/com/gv/mx/empleados/web/EmpleadoExportController.java
 package com.gv.mx.empleados.web;
 
 import com.gv.mx.empleados.application.EmpleadoExportService;
@@ -8,6 +9,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
@@ -26,6 +29,8 @@ import java.time.format.DateTimeFormatter;
 @RestController
 @RequestMapping("/api/empleados/export")
 @RequiredArgsConstructor
+@Tag(name = "Empleados - Exportación")
+@SecurityRequirement(name = "bearerAuth")
 public class EmpleadoExportController {
 
     private final EmpleadoExportService export;
@@ -34,8 +39,8 @@ public class EmpleadoExportController {
             value = "/xlsx",
             produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
-    @Operation(summary = "Exporta empleados a XLSX (ADMIN/RRHH)")
+    @PreAuthorize("hasAnyRole('ADMIN','RRHH') or hasAuthority('SCOPE_empleados.export')")
+    @Operation(summary = "Exporta empleados a XLSX (ADMIN/RRHH o scope empleados.export)")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -70,8 +75,8 @@ public class EmpleadoExportController {
     }
 
     @GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
-    @Operation(summary = "Exporta empleados a PDF (ADMIN/RRHH)")
+    @PreAuthorize("hasAnyRole('ADMIN','RRHH') or hasAuthority('SCOPE_empleados.export')")
+    @Operation(summary = "Exporta empleados a PDF (ADMIN/RRHH o scope empleados.export)")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -96,7 +101,6 @@ public class EmpleadoExportController {
         String base = "empleados_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
         String encoded = URLEncoder.encode(base, StandardCharsets.UTF_8);
 
-        // OJO: usa 'attachment' (no inline) para que Swagger UI ofrezca "Download file"
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + "\"; filename*=UTF-8''" + encoded)

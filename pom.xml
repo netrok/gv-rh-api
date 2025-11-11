@@ -27,11 +27,11 @@
         <lombok.version>1.18.42</lombok.version>
         <jasperreports.version>6.21.3</jasperreports.version>
 
-        <!-- Evita warnings de parametrización en compilación y habilita metadata de parámetros -->
+        <!-- Pasar nombres de parámetros al bytecode -->
         <maven.compiler.parameters>true</maven.compiler.parameters>
     </properties>
 
-    <!-- Repos necesarios (Jasper CE además de Maven Central) -->
+    <!-- Repos (Jasper CE además de Central) -->
     <repositories>
         <repository>
             <id>central</id>
@@ -116,18 +116,16 @@
             <version>${openpdf.version}</version>
         </dependency>
 
-        <!-- JasperReports (única vez, sin duplicados) -->
+        <!-- JasperReports (sin commons-logging ni iText legado) -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>
             <version>${jasperreports.version}</version>
             <exclusions>
-                <!-- Evita conflicto de logging con spring-jcl -->
                 <exclusion>
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
-                <!-- Evita arrastrar iText legado (usamos OpenPDF) -->
                 <exclusion>
                     <groupId>com.lowagie</groupId>
                     <artifactId>itext</artifactId>
@@ -139,7 +137,7 @@
             </exclusions>
         </dependency>
 
-        <!-- (Opcional pero recomendable) EL para expresiones/funciones en JRXML -->
+        <!-- (Opcional recomendado) EL para expresiones/funciones en JRXML -->
         <dependency>
             <groupId>org.glassfish</groupId>
             <artifactId>jakarta.el</artifactId>
@@ -157,14 +155,13 @@
             <artifactId>jaxb-impl</artifactId>
             <version>4.0.5</version>
         </dependency>
-        <!-- (Refuerzo) Activation API para ciertos paths de JAXB -->
         <dependency>
             <groupId>jakarta.activation</groupId>
             <artifactId>jakarta.activation-api</artifactId>
-            <version>2.1.3</version>
+            <version>2.1.4</version>
         </dependency>
 
-        <!-- (Opcional) Paquete de fuentes Jasper (para embebido en PDF) -->
+        <!-- Paquete de fuentes Jasper (para embeber fuentes en PDF si hace falta) -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-fonts</artifactId>
@@ -240,7 +237,32 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Capa por capas en el jar (útil para contenedores) -->
+                    <layers enabled="true"/>
+                    <!-- Devtools no se empaqueta en el fat-jar -->
+                    <excludeDevtools>true</excludeDevtools>
+                </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <!-- Perfil prod (empaquetado sin test y con layers) -->
+    <profiles>
+        <profile>
+            <id>prod</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <configuration>
+                            <skipTests>true</skipTests>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

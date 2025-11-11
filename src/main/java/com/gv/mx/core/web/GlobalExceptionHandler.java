@@ -3,11 +3,10 @@ package com.gv.mx.core.web;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
-import org.springframework.web.ErrorResponseException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -41,7 +40,6 @@ public class GlobalExceptionHandler {
         body.put("path", req.getRequestURI());
         body.put("method", req.getMethod());
         body.put("traceId", UUID.randomUUID().toString().replace("-", "").substring(0,16));
-        body.put("errors", new ArrayList<>());
         return body;
     }
 
