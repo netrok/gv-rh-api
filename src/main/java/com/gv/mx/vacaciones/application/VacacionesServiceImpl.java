@@ -1,7 +1,7 @@
 // src/main/java/com/gv/mx/vacaciones/application/VacacionesServiceImpl.java
 package com.gv.mx.vacaciones.application;
 
-import com.gv.mx.vacaciones.domain.Feriado;
+import com.gv.mx.calendario.domain.Feriado;
 import com.gv.mx.vacaciones.domain.PeriodoVacacional;
 import com.gv.mx.vacaciones.domain.SaldoVacaciones;
 import com.gv.mx.vacaciones.domain.SolicitudVacaciones;

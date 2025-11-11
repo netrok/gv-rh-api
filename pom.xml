@@ -24,7 +24,22 @@
         <poi.version>5.2.5</poi.version>
         <openpdf.version>1.3.39</openpdf.version>
         <lombok.version>1.18.42</lombok.version>
+        <jasperreports.version>6.21.3</jasperreports.version>
     </properties>
+
+    <!-- 👇 Repos va AQUÍ, a nivel raíz (no dentro de <dependencies>) -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <id>jaspersoft-ce</id>
+            <name>Jaspersoft CE Artifacts</name>
+            <url>https://jaspersoft.jfrog.io/artifactory/third-party-ce-artifacts/</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <!-- Web/API -->
@@ -95,6 +110,35 @@
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
             <version>${openpdf.version}</version>
+        </dependency>
+
+        <!-- JasperReports (excluye iText legado) -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+            <version>${jasperreports.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.lowagie</groupId>
+                    <artifactId>itext</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.lowagie</groupId>
+                    <artifactId>itext-rtf</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- JAXB para JDK 21 -->
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+            <version>4.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.xml.bind</groupId>
+            <artifactId>jaxb-impl</artifactId>
+            <version>4.0.5</version>
         </dependency>
 
         <!-- Jackson Java Time -->

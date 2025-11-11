@@ -1,6 +1,6 @@
 package com.gv.mx.vacaciones.infrastructure;
 
-import com.gv.mx.vacaciones.domain.Feriado;
+import com.gv.mx.calendario.domain.Feriado;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS feriado(
+    id BIGSERIAL PRIMARY KEY,
+    fecha DATE NOT NULL UNIQUE,
+    descripcion VARCHAR(160),
+    nacional BOOLEAN NOT NULL DEFAULT TRUE
+);

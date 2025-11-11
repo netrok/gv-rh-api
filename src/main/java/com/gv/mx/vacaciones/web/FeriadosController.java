@@ -1,7 +1,7 @@
 // src/main/java/com/gv/mx/vacaciones/web/FeriadosController.java
 package com.gv.mx.vacaciones.web;
 
-import com.gv.mx.vacaciones.domain.Feriado;
+import com.gv.mx.calendario.domain.Feriado;
 import com.gv.mx.vacaciones.infrastructure.FeriadoRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
