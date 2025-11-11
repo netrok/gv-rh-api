@@ -20,14 +20,18 @@
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
         <springdoc.version>2.8.14</springdoc.version>
         <poi.version>5.2.5</poi.version>
         <openpdf.version>1.3.39</openpdf.version>
         <lombok.version>1.18.42</lombok.version>
         <jasperreports.version>6.21.3</jasperreports.version>
+
+        <!-- Evita warnings de parametrización en compilación y habilita metadata de parámetros -->
+        <maven.compiler.parameters>true</maven.compiler.parameters>
     </properties>
 
-    <!-- 👇 Repos va AQUÍ, a nivel raíz (no dentro de <dependencies>) -->
+    <!-- Repos necesarios (Jasper CE además de Maven Central) -->
     <repositories>
         <repository>
             <id>central</id>
@@ -112,12 +116,18 @@
             <version>${openpdf.version}</version>
         </dependency>
 
-        <!-- JasperReports (excluye iText legado) -->
+        <!-- JasperReports (única vez, sin duplicados) -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>
             <version>${jasperreports.version}</version>
             <exclusions>
+                <!-- Evita conflicto de logging con spring-jcl -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+                <!-- Evita arrastrar iText legado (usamos OpenPDF) -->
                 <exclusion>
                     <groupId>com.lowagie</groupId>
                     <artifactId>itext</artifactId>
@@ -127,6 +137,13 @@
                     <artifactId>itext-rtf</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- (Opcional pero recomendable) EL para expresiones/funciones en JRXML -->
+        <dependency>
+            <groupId>org.glassfish</groupId>
+            <artifactId>jakarta.el</artifactId>
+            <version>4.0.2</version>
         </dependency>
 
         <!-- JAXB para JDK 21 -->
@@ -139,6 +156,19 @@
             <groupId>com.sun.xml.bind</groupId>
             <artifactId>jaxb-impl</artifactId>
             <version>4.0.5</version>
+        </dependency>
+        <!-- (Refuerzo) Activation API para ciertos paths de JAXB -->
+        <dependency>
+            <groupId>jakarta.activation</groupId>
+            <artifactId>jakarta.activation-api</artifactId>
+            <version>2.1.3</version>
+        </dependency>
+
+        <!-- (Opcional) Paquete de fuentes Jasper (para embebido en PDF) -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports-fonts</artifactId>
+            <version>${jasperreports.version}</version>
         </dependency>
 
         <!-- Jackson Java Time -->
@@ -190,7 +220,7 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>${java.version}</release>
-                    <parameters>true</parameters>
+                    <parameters>${maven.compiler.parameters}</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
